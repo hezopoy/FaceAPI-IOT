@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detect Faces Sample</title>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+</head>
+<body>
+
+<script type="text/javascript">
+	function setKey(){
+		var subscriptionKey = document.getElementById("keyAPI").value;
+		if(subscriptionKey == ""){
+			//alert("Key is null!!");
+			document.getElementById("keyAPI").style.borderColor = "red";
+			document.getElementById("keyAPI").focus();
+		}else{
+			document.getElementById("keyAPI").style.borderColor = document.getElementById("inputImage").style.borderColor;	
+		}
+	}
+    function processImage() {
+        // Replace <Subscription Key> with your valid subscription key.
+		//"406352e4772f444c934e8f8c93cedd94"
+        var subscriptionKey = document.getElementById("keyAPI").value;
+
+        // NOTE: You must use the same region in your REST call as you used to
+        // obtain your subscription keys. For example, if you obtained your
+        // subscription keys from westus, replace "westcentralus" in the URL
+        // below with "westus".
+        //
+        // Free trial subscription keys are generated in the westcentralus region.
+        // If you use a free trial subscription key, you shouldn't need to change 
+        // this region.
+        var uriBase =
+            "https://westcentralus.api.cognitive.microsoft.com/face/v1.0/detect";
+
+        // Request parameters.
+        var params = {
+            "returnFaceId": "true",
+            "returnFaceLandmarks": "false",
+            "returnFaceAttributes":
+                "age,gender,headPose,smile,facialHair,glasses,emotion," +
+                "hair,makeup,occlusion,accessories,blur,exposure,noise"
+        };
+
+        // Display the image.
+        var sourceImageUrl = document.getElementById("inputImage").value;
+        document.querySelector("#sourceImage").src = sourceImageUrl;
+
+        // Perform the REST API call.
+        $.ajax({
+            url: uriBase + "?" + $.param(params),
+
+            // Request headers.
+            beforeSend: function(xhrObj){
+                xhrObj.setRequestHeader("Content-Type","application/json");
+                xhrObj.setRequestHeader("Ocp-Apim-Subscription-Key", subscriptionKey);
+            },
+
+            type: "POST",
+
+            // Request body.
+            data: '{"url": ' + '"' + sourceImageUrl + '"}',
+        })
+
+        .done(function(data) {
+            // Show formatted JSON on webpage.
+            $("#responseTextArea").val(JSON.stringify(data, null, 2));
+            var numberOfPeople = data.length;
+            var male = 0;
+            var female = 0;
+            var anger = 0;
+            var happy = 0;
+            for(var i=0; i<data.length;i++){
+                data[i].faceAttributes.gender == 'male' ? male++ : female++;
+                if(data[i].faceAttributes.emotion.anger >= 0.5){
+                    anger ++;
+                }else if(data[i].faceAttributes.emotion.happiness >= 0.5){
+                    happy++;
+                }
+            }
+			document.getElementById("num1").innerHTML=numberOfPeople;
+			document.getElementById("num2").innerHTML=male;
+			document.getElementById("num3").innerHTML=female;
+			document.getElementById("num4").innerHTML=happy;
+			document.getElementById("num5").innerHTML=anger;
+			
+            var url = 'https://api.thingspeak.com/update?api_key=DGFMV20NVMZDBSAU&field1='+numberOfPeople+'&field2='+male+'&field3='+female+'&field4='+happy+'&field5='+anger;
+            
+            console.log('====================================');
+            console.log(numberOfPeople);
+            console.log('====================================');
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", url, true);
+                            
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+            xhr.onreadystatechange = function() {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                }
+            }
+            xhr.send(); 
+        })
+
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            // Display error message.
+            var errorString = (errorThrown === "") ?
+                "Error. " : errorThrown + " (" + jqXHR.status + "): ";
+            errorString += (jqXHR.responseText === "") ?
+                "" : (jQuery.parseJSON(jqXHR.responseText).message) ?
+                    jQuery.parseJSON(jqXHR.responseText).message :
+                        jQuery.parseJSON(jqXHR.responseText).error.message;
+            alert(errorString);
+        });
+    };
+</script>
+
+<h1>Detect Faces:</h1>
+Enter the URL to an image that includes a face or faces, then click
+the <strong>Analyze face</strong> button.<br><br>
+
+Image to analyze: <input type="text" name="inputImage" id="inputImage"
+value="http://mediaold.tiin.vn:8080/media_old_2016//medias12//2015/11/11/926af222-5cf4-4f86-a2b8-97322904319e.jpg" />
+
+<button onclick="processImage()">Analyze face</button><br><br>
+Key: <input type="text" name="keyAPI" id = "keyAPI" value="406352e4772f444c934e8f8c93cedd94" onblur="setKey()">
+
+<div id="wrapper" style="width:1020px; display:table;">
+    <div id="jsonOutput" style="width:600px; display:table-cell;">
+        Response:<br><br>
+
+        <textarea id="responseTextArea" class="UIInput"
+                  style="width:580px; height:400px;"></textarea>
+    </div>
+    <div id="imageDiv" style="width:420px; display:table-cell;">
+        Source image:<br><br>
+
+        <img id="sourceImage" width="400" />
+    </div>
+	<div id="imageDiv" style="width:420px; display:table-row">
+        Result:<br><br>
+        Total: <b id = "num1"></b>&emsp;
+		Male:<b id = "num2"></b>&emsp;
+		Female:<b id = "num3"></b>&emsp;
+		Happy:<b id = "num4"></b>&emsp;
+		Anger:<b id = "num5"></b>&emsp;
+    </div>
+</div>
+</body>
+</html>
